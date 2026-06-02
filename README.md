@@ -132,7 +132,7 @@ This produces a normalized score between **0 and 100**.
 
 ---
 
-# Project Structure
+# Package Structure
 
 ```text
 portfolio_fit_score/
@@ -141,15 +141,13 @@ portfolio_fit_score/
 ├── weights.py
 ├── final_calculation.py
 │
-├── data/
-│   ├── category_scores.csv
-│   ├── portfolio_fit_weights.csv
-│   ├── category_correlation_matrix.csv
-│   ├── pca_loadings.csv
-│   ├── redundancy_pairs.csv
-│   └── final_portfolio_fit_scores.csv
-│
-└── README.md
+└── data/
+    ├── category_scores.csv
+    ├── portfolio_fit_weights.csv
+    ├── category_correlation_matrix.csv
+    ├── pca_loadings.csv
+    ├── redundancy_pairs.csv
+    └── final_portfolio_fit_scores.csv
 ```
 
 ---
