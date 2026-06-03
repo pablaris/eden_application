@@ -1,21 +1,39 @@
 import pandas as pd  # pyright: ignore[reportMissingModuleSource]
-from portfolio_fit_score_package.modules import path  # pyright: ignore[reportMissingImports]
+from pathlib import Path
 
 # ============================================================
 # Project paths
 # ============================================================
 #
-# Resolve the data directory at runtime.
+# Resolve the data directory at runtime so the script does not
+# depend on hard-coded absolute paths.
 #
-# This avoids hard-coded paths and allows all modules in the
-# Portfolio Fit pipeline to read and write data consistently.
+# This makes the module portable across machines, notebooks,
+# and execution environments.
 # ============================================================
 
-DATA_DIR = path()
+def path() -> Path:
+    """
+    Return the project's data directory.
 
-CATEGORY_SCORES_FILE = DATA_DIR / "category_scores.csv"
-WEIGHTS_FILE = DATA_DIR / "portfolio_fit_weights.csv"
-OUTPUT_FILE = DATA_DIR / "final_portfolio_fit_scores.csv"
+    The directory is created automatically if it does not
+    already exist.
+
+    Returns
+    -------
+    Path
+        Absolute path to the project's data directory.
+    """
+
+    project_root = Path(__file__).resolve().parent
+    data_dir = project_root / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir
+
+DATA_DIR = path()
+CATEGORY_SCORES_FILE = DATA_DIR / "category_scores.xlsx"
+WEIGHTS_FILE = DATA_DIR / "portfolio_fit_weights.xlsx"
+OUTPUT_FILE = DATA_DIR / "final_portfolio_fit_scores.xlsx"
 
 # ============================================================
 # Load inputs
@@ -37,7 +55,6 @@ if not CATEGORY_SCORES_FILE.exists():
     raise FileNotFoundError(
         f"Missing category scores file: {CATEGORY_SCORES_FILE}"
     )
-
 if not WEIGHTS_FILE.exists():
     raise FileNotFoundError(
         f"Missing weights file: {WEIGHTS_FILE}"
@@ -61,7 +78,7 @@ if not WEIGHTS_FILE.exists():
 #   Scores between 0 and 100
 # ============================================================
 
-category_scores = pd.read_csv(
+category_scores = pd.read_excel(
     CATEGORY_SCORES_FILE,
     index_col=0
 )
@@ -84,16 +101,13 @@ category_scores = pd.read_csv(
 # correlation-matrix analysis performed in weights.py
 # ============================================================
 
-weights_df = pd.read_csv(WEIGHTS_FILE)
-
+weights_df = pd.read_excel(WEIGHTS_FILE)
 required_cols = {"Category", "Weight"}
-
 if not required_cols.issubset(weights_df.columns):
     raise ValueError(
         f"Weights file must contain columns {required_cols}. "
         f"Found columns: {list(weights_df.columns)}"
     )
-
 weights_df = weights_df.set_index("Category")
 
 # ============================================================
@@ -126,22 +140,17 @@ if "Portfolio Fit Score" in category_scores.columns:
 # ============================================================
 
 weight_categories = weights_df.index.tolist()
-
 missing_categories = [
     c
     for c in weight_categories
     if c not in category_scores.columns
 ]
-
 if missing_categories:
     raise ValueError(
         "The following weighted categories are missing "
-        "from category_scores.csv: "
+        "from category_scores.xlsx: "
         + ", ".join(missing_categories)
     )
-
-# Reorder category columns to match the weight table.
-# This guarantees proper matrix multiplication.
 category_scores = category_scores[weight_categories]
 
 # ============================================================
@@ -157,14 +166,11 @@ category_scores = category_scores[weight_categories]
 # ============================================================
 
 weights = weights_df["Weight"].astype(float)
-
 weights_sum = weights.sum()
-
 if weights_sum <= 0:
     raise ValueError(
         "Weights must sum to a positive value."
     )
-
 weights = weights / weights_sum
 
 # ============================================================
@@ -206,8 +212,6 @@ final_scores = category_scores.sort_values(
     "Portfolio Fit Score",
     ascending=False
 )
-
-# Round values for presentation and reporting.
 final_scores = final_scores.round(2)
 
 # ============================================================
@@ -221,16 +225,12 @@ final_scores = final_scores.round(2)
 # 3. Final ranking
 # ============================================================
 
+ranking = final_scores["Portfolio Fit Score"]
 print("\n=== PORTFOLIO FIT WEIGHTS ===")
 print((weights * 100).round(2))
-
 print("\n=== FINAL PORTFOLIO FIT SCORES ===")
 print(final_scores)
-
 print("\n=== FINAL RANKING ===")
-
-ranking = final_scores["Portfolio Fit Score"]
-
 print(ranking)
 
 # ============================================================
@@ -245,6 +245,4 @@ print(ranking)
 #   - Presentation exhibits
 # ============================================================
 
-final_scores.to_csv(OUTPUT_FILE)
-
-print(f"\nSaved final scores to: {OUTPUT_FILE}")
+final_scores.to_excel(OUTPUT_FILE)

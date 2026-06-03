@@ -1,237 +1,182 @@
 import numpy as np  # pyright: ignore[reportMissingImports]
 import pandas as pd  # pyright: ignore[reportMissingModuleSource]
-from portfolio_fit_score_package.modules import path  # pyright: ignore[reportMissingImports]
-from itertools import combinations
+from pathlib import Path
 
 # ============================================================
 # Project paths
 # ============================================================
 #
-# Resolve the working directory at runtime rather than using
-# hard-coded paths. This keeps the script portable across
-# machines and execution environments.
+# Resolve the data directory at runtime so the script does not
+# depend on hard-coded absolute paths.
+#
+# This makes the module portable across machines, notebooks,
+# and execution environments.
 # ============================================================
+
+def path() -> Path:
+    """
+    Return the project's data directory.
+
+    The directory is created automatically if it does not
+    already exist.
+
+    Returns
+    -------
+    Path
+        Absolute path to the project's data directory.
+    """
+
+    project_root = Path(__file__).resolve().parent
+    data_dir = project_root / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir
 
 DATA_DIR = path()
-
-INPUT_FILE = DATA_DIR / "category_scores.csv"
-OUTPUT_WEIGHTS_FILE = DATA_DIR / "portfolio_fit_weights.csv"
-OUTPUT_CORR_FILE = DATA_DIR / "category_correlation_matrix.csv"
-OUTPUT_LOADINGS_FILE = DATA_DIR / "pca_loadings.csv"
-OUTPUT_REDUNDANCY_FILE = DATA_DIR / "redundancy_pairs.csv"
+OUTPUT_WEIGHTS_FILE = DATA_DIR / "portfolio_fit_weights.xlsx"
+OUTPUT_MATRIX_FILE = DATA_DIR / "ahp_pairwise_matrix.xlsx"
 
 # ============================================================
-# Model parameters
+# Portfolio Fit criteria
 # ============================================================
 #
-# EXPLAINED_VARIANCE_THRESHOLD:
-# Minimum proportion of total variance we want to capture with
-# the selected principal components.
+# These are the five categories used to build the Portfolio
+# Fit Score.
 #
-# REDUNDANCY_THRESHOLD:
-# Correlation threshold above which two categories are flagged
-# as potentially redundant.
+# The weights are determined using AHP because the objective is
+# to translate portfolio-construction judgment into a structured,
+# reproducible weighting scheme.
 # ============================================================
 
-EXPLAINED_VARIANCE_THRESHOLD = 0.80
-REDUNDANCY_THRESHOLD = 0.85
-
-# ============================================================
-# Load category scores
-# ============================================================
-#
-# The input file is expected to contain the category scores
-# produced by portfolio_fit_score.py.
-#
-# Structure:
-#   Rows    -> companies
-#   Columns -> Portfolio Fit categories
-#
-# The purpose of this script is to infer a data-driven set of
-# weights from the structure of those category scores.
-# ============================================================
-
-if not INPUT_FILE.exists():
-    raise FileNotFoundError(f"Could not find input file: {INPUT_FILE}")
-
-# Read the category score table.
-# The first column is the company name, so we use it as the index.
-df = pd.read_csv(INPUT_FILE, index_col=0)
-
-# Keep only numeric columns.
-# If a final score column is present, remove it because weights
-# should be calculated only from the category-level scores.
-numeric_df = df.select_dtypes(include=[np.number]).copy()
-
-if "Portfolio Fit Score" in numeric_df.columns:
-    numeric_df = numeric_df.drop(columns=["Portfolio Fit Score"])
-
-# PCA requires at least two variables.
-if numeric_df.shape[1] < 2:
-    raise ValueError("Need at least two numeric categories to compute PCA weights.")
-
-# ============================================================
-# Basic validation
-# ============================================================
-#
-# Categories with zero variance provide no useful information
-# for correlation analysis or PCA, so we exclude them.
-# ============================================================
-
-zero_var_cols = [
-    c for c in numeric_df.columns
-    if np.isclose(numeric_df[c].std(ddof=0), 0.0)
+CRITERIA = [
+    "Sector Diversification",
+    "Growth Profile",
+    "Geographic Diversification",
+    "Structural Theme Exposure",
+    "Revenue Quality",
 ]
 
-if zero_var_cols:
-    raise ValueError(
-        "The following category columns have zero variance and cannot be used for PCA: "
-        + ", ".join(zero_var_cols)
-    )
-
-criteria = numeric_df.columns.tolist()
-
 # ============================================================
-# Correlation matrix
+# Pairwise comparison matrix
 # ============================================================
 #
-# The correlation matrix is used to detect overlapping or
-# redundant Portfolio Fit categories.
+# The matrix uses Saaty's 1-9 scale:
 #
-# A high absolute correlation suggests that two categories may
-# be measuring the same underlying portfolio characteristic.
-# ============================================================
-
-corr_matrix = numeric_df.corr()
-corr_matrix.to_csv(OUTPUT_CORR_FILE)
-
-# Identify highly correlated category pairs.
-# These are not automatically removed, but they are useful for
-# interpretation and model diagnostics.
-redundancy_rows = []
-for c1, c2 in combinations(criteria, 2):
-    corr_value = corr_matrix.loc[c1, c2]
-    if abs(corr_value) >= REDUNDANCY_THRESHOLD:
-        redundancy_rows.append(
-            {
-                "Category 1": c1,
-                "Category 2": c2,
-                "Correlation": corr_value,
-                "Potentially Redundant": True,
-            }
-        )
-
-redundancy_df = pd.DataFrame(redundancy_rows)
-redundancy_df.to_csv(OUTPUT_REDUNDANCY_FILE, index=False)
-
-# ============================================================
-# PCA via eigen-decomposition of the correlation matrix
-# ============================================================
+#   1 = equally important
+#   3 = moderately more important
+#   5 = strongly more important
+#   7 = very strongly more important
+#   9 = extremely more important
 #
-# PCA is performed on the correlation matrix rather than the raw
-# values because the categories are already on the same scale
-# and we want to analyze structure, not magnitude.
+# Reciprocal structure:
+#   A[i, j] = 1 / A[j, i]
 #
-# For standardized variables, eigendecomposition of the
-# correlation matrix is equivalent to PCA.
+# Interpretation for this case:
+# - Sector Diversification is the most important because the
+#   portfolio already has semis / healthcare / consumer and
+#   lacks energy / industrial exposure.
+# - Structural Theme Exposure is next because the portfolio
+#   lacks energy-transition exposure.
+# - Growth Profile matters, but the stock sleeve is already
+#   intended for high-conviction growth.
+# - Revenue Quality matters because recurring revenue improves
+#   durability.
+# - Geographic Diversification matters, but it is the least
+#   critical gap in this specific portfolio.
 # ============================================================
 
-corr_values = corr_matrix.values
-eigvals, eigvecs = np.linalg.eigh(corr_values)
-
-# Sort eigenvalues and eigenvectors from largest to smallest.
-order = np.argsort(eigvals)[::-1]
-eigvals = eigvals[order]
-eigvecs = eigvecs[:, order]
-
-# Small negative values may appear due to floating-point noise.
-# Clip them to zero to keep the decomposition numerically stable.
-eigvals = np.clip(eigvals, 0, None)
-
-# Explained variance ratio for each principal component.
-explained_variance_ratio = eigvals / eigvals.sum()
-cumulative_explained_variance = np.cumsum(explained_variance_ratio)
-
-# Select the smallest number of components that explains enough
-# total variance according to the chosen threshold.
-n_components = int(
-    np.searchsorted(cumulative_explained_variance, EXPLAINED_VARIANCE_THRESHOLD) + 1
-)
-n_components = max(1, min(n_components, len(criteria)))
-
-# PCA loadings:
-# loading = eigenvector * sqrt(eigenvalue)
-# Loadings indicate how strongly each category contributes to
-# each principal component.
-loadings = eigvecs[:, :n_components] * np.sqrt(eigvals[:n_components])
-
-loadings_df = pd.DataFrame(
-    loadings,
-    index=criteria,
-    columns=[f"PC{i+1}" for i in range(n_components)]
-)
-loadings_df.to_csv(OUTPUT_LOADINGS_FILE)
+A = np.array([
+    [1,   3,   5,   2,   4],
+    [1/3, 1,   3,   1/2, 2],
+    [1/5, 1/3, 1,   1/4, 1/2],
+    [1/2, 2,   4,   1,   3],
+    [1/4, 1/2, 2,   1/3, 1]
+], dtype=float)
 
 # ============================================================
-# Convert PCA structure into weights
+# AHP helper function
 # ============================================================
 #
-# The weighting scheme gives more importance to categories that:
-#   1. load strongly on the main principal components, and
-#   2. contribute to components explaining a larger share of
-#      total variance.
+# This function computes:
+#   1. the priority weights
+#   2. the consistency ratio
 #
-# This creates a data-driven set of weights that emphasizes the
-# dominant structure in the category score table while reducing
-# the risk of double-counting highly correlated dimensions.
+# The consistency ratio tells us whether the pairwise judgments
+# are logically coherent. In practice, CR < 0.10 is usually
+# considered acceptable.
 # ============================================================
 
-importance = np.zeros(len(criteria))
+def ahp_weights(matrix: np.ndarray) -> tuple[np.ndarray, float]:
+    """
+    Compute AHP weights using the principal eigenvector method.
 
-for i in range(n_components):
-    importance += np.abs(loadings[:, i]) * explained_variance_ratio[i]
+    Parameters
+    ----------
+    matrix : np.ndarray
+        Square reciprocal pairwise comparison matrix.
 
-weights = importance / importance.sum()
-weights_series = pd.Series(weights, index=criteria, name="Weight")
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        - normalized weights
+        - consistency ratio
+    """
 
-# Save weights in tabular form for downstream use.
-weights_df = weights_series.reset_index()
+    n = matrix.shape[0]
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("AHP matrix must be square.")
+    eigenvalues, eigenvectors = np.linalg.eig(matrix)
+    max_index = np.argmax(eigenvalues.real)
+    lambda_max = eigenvalues.real[max_index]
+    weights = eigenvectors[:, max_index].real
+    weights = weights / weights.sum()
+    ci = (lambda_max - n) / (n - 1)
+    ri_table = {
+        1: 0.00,
+        2: 0.00,
+        3: 0.58,
+        4: 0.90,
+        5: 1.12,
+        6: 1.24,
+        7: 1.32,
+        8: 1.41,
+        9: 1.45,
+        10: 1.49,
+    }
+    ri = ri_table.get(n, 1.49)
+    cr = ci / ri if ri != 0 else 0.0
+    return weights, cr
+
+# ============================================================
+# Compute weights
+# ============================================================
+
+weights_array, consistency_ratio = ahp_weights(A)
+weights = pd.Series(weights_array, index=CRITERIA, name="Weight")
+weights = weights / weights.sum()
+
+# ============================================================
+# Save outputs
+# ============================================================
+
+weights_df = weights.reset_index()
 weights_df.columns = ["Category", "Weight"]
-weights_df.to_csv(OUTPUT_WEIGHTS_FILE, index=False)
+weights_df.to_excel(OUTPUT_WEIGHTS_FILE, index=False)
+pd.DataFrame(A, index=CRITERIA, columns=CRITERIA).to_excel(OUTPUT_MATRIX_FILE)
 
 # ============================================================
-# Output
+# Diagnostics
 # ============================================================
 #
-# Print the main diagnostics so the model is transparent during
-# development and easy to discuss in the final presentation.
+# These prints help validate that the weights are defensible
+# and internally consistent.
 # ============================================================
 
-print("\n=== CATEGORY CORRELATION MATRIX ===")
-print(corr_matrix.round(3))
-
-print("\n=== HIGHLY CORRELATED PAIRS (if any) ===")
-if redundancy_df.empty:
-    print("No category pairs exceeded the redundancy threshold.")
+print("\n=== AHP PAIRWISE MATRIX ===")
+print(pd.DataFrame(A, index=CRITERIA, columns=CRITERIA).round(3))
+print("\n=== AHP WEIGHTS ===")
+print((weights * 100).round(2).sort_values(ascending=False))
+print(f"\nConsistency Ratio: {consistency_ratio:.4f}")
+if consistency_ratio > 0.10:
+    print("Warning: pairwise judgments may be inconsistent.")
 else:
-    print(redundancy_df.round(3).to_string(index=False))
-
-print("\n=== PCA EXPLAINED VARIANCE ===")
-for i, evr in enumerate(explained_variance_ratio[:n_components], start=1):
-    print(f"PC{i}: {evr:.4f}")
-
-print(
-    f"\nCumulative explained variance using {n_components} PCs: "
-    f"{cumulative_explained_variance[n_components - 1]:.4f}"
-)
-
-print("\n=== PCA LOADINGS ===")
-print(loadings_df.round(4))
-
-print("\n=== FINAL WEIGHTS ===")
-print((weights_series * 100).round(2).sort_values(ascending=False))
-
-print(f"\nSaved weights to: {OUTPUT_WEIGHTS_FILE}")
-print(f"Saved correlation matrix to: {OUTPUT_CORR_FILE}")
-print(f"Saved PCA loadings to: {OUTPUT_LOADINGS_FILE}")
-print(f"Saved redundancy report to: {OUTPUT_REDUNDANCY_FILE}")
+    print("AHP consistency is acceptable.")

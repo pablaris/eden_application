@@ -1,13 +1,34 @@
 import pandas as pd  # pyright: ignore[reportMissingModuleSource]
-from portfolio_fit_score_package.modules import path  # pyright: ignore[reportMissingImports]
+from pathlib import Path
 
 # ============================================================
-# Data directory resolution
+# Project paths
 # ============================================================
-# Resolve the output directory at runtime instead of hard-coding
-# file paths. This improves portability and makes the code easier
-# to run across different environments and machines.
+#
+# Resolve the data directory at runtime so the script does not
+# depend on hard-coded absolute paths.
+#
+# This makes the module portable across machines, notebooks,
+# and execution environments.
 # ============================================================
+
+def path() -> Path:
+    """
+    Return the project's data directory.
+
+    The directory is created automatically if it does not
+    already exist.
+
+    Returns
+    -------
+    Path
+        Absolute path to the project's data directory.
+    """
+    
+    project_root = Path(__file__).resolve().parent
+    data_dir = project_root / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir
 
 DATA_DIR = path()
 
@@ -45,7 +66,6 @@ ANSWER_TO_POINTS = {
     "yes": 1.0,
 }
 
-
 def score_category(answers):
     """
     Convert three rubric responses into a normalized category score.
@@ -61,13 +81,12 @@ def score_category(answers):
     Returns
     -------
     float
-        Category score on a 0–100 scale.
+        Category score on a 0-100 scale.
 
     Notes
     -----
     The score is computed as:
-
-        (sum(points) / 3) × 100
+        (sum(points) / 3) x 100
 
     where:
         yes     = 1.0
@@ -77,33 +96,21 @@ def score_category(answers):
     This rule-based scoring approach keeps the methodology
     transparent, reproducible, and easy to defend in Q&A.
     """
-
-    # Each category must be evaluated on exactly three guiding
-    # questions to preserve consistency across all dimensions.
+    
     if len(answers) != 3:
         raise ValueError(
             "Each category must contain exactly three rubric answers."
         )
-
     points = []
-
-    # Convert each qualitative answer into its numerical equivalent.
     for answer in answers:
         key = answer.lower().strip()
-
-        # Enforce a strict response vocabulary so that the scoring
-        # model remains auditable and free from ambiguous inputs.
         if key not in ANSWER_TO_POINTS:
             raise ValueError(
                 f"Invalid answer '{answer}'. "
                 "Allowed values: yes, partial, no."
             )
-
         points.append(ANSWER_TO_POINTS[key])
-
-    # Average the three question scores and scale to 0–100.
     return (sum(points) / 3.0) * 100.0
-
 
 # ============================================================
 # Rubric Definition
@@ -173,8 +180,6 @@ rubric = {
         "NovaTerra": ["yes",     "yes",     "yes"],
     },
 }
-
-# Company universe included in the analysis.
 companies = ["Orion", "Cleanergy", "NovaTerra"]
 
 # ============================================================
@@ -192,7 +197,6 @@ companies = ["Orion", "Cleanergy", "NovaTerra"]
 # ============================================================
 
 category_scores = pd.DataFrame(index=companies)
-
 for category, company_answers in rubric.items():
     category_scores[category] = {
         company: score_category(company_answers[company])
@@ -210,4 +214,4 @@ for category, company_answers in rubric.items():
 #   - final investment ranking
 # ============================================================
 
-category_scores.to_csv(DATA_DIR / "category_scores.csv")
+category_scores.to_excel(DATA_DIR / "category_scores.xlsx")
