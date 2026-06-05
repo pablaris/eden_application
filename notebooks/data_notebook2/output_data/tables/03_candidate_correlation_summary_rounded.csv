@@ -1,0 +1,4 @@
+Asset,Asset Type,Average Correlation with Current Holdings,Min Correlation with Current Holdings,Lowest-Correlation Holding,Max Correlation with Current Holdings,Highest-Correlation Holding,Correlation with ASML,Correlation with XLU,Correlation with GLD
+Orion,Fictional Candidate,0.328,0.106,NOVO-B,0.536,ASML,0.536,0.364,0.146
+Cleanergy,Fictional Candidate,-0.012,-0.03,XLU,0.005,NOVO-B,-0.022,-0.03,-0.005
+NovaTerra,Fictional Candidate,0.045,0.019,GLD,0.087,PVH,0.038,0.031,0.019

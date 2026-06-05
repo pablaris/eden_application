@@ -1,0 +1,4 @@
+Asset Added,Asset Type,Change in Annualized Return,Change in Annualized Volatility,Change in Sharpe Ratio,Change in Max Drawdown,Drawdown Impact
+Orion,Fictional Candidate,0.05361748034883229,0.02924826005495129,0.16643365865582793,-0.02519272033205089,Worsens
+Cleanergy,Fictional Candidate,-0.0016526010339787955,-0.014385635534391927,0.04114114873644459,-0.05396001979176135,Worsens
+NovaTerra,Fictional Candidate,0.006439709150871886,-0.01509998223526679,0.09110845481609486,0.013283554898918415,Improves
