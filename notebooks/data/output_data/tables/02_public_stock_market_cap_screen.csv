@@ -1,0 +1,5 @@
+Ticker,Company Name,Description,Market Cap,Market Cap $bn,Quote Type,Exchange,Market-Cap Eligible
+CRUS,"Cirrus Logic, Inc.",Orion alternative: profitable mid-cap fabless semiconductor company; less pure edge-AI exposure but cleaner public data and compliance profile,8373133824,8.373133824,EQUITY,NMS,True
+ITRI,"Itron, Inc.",Cleanergy alternative: smart-grid / utility infrastructure,3500591360,3.50059136,EQUITY,NMS,True
+TRMB,Trimble Inc.,"NovaTerra alternative: positioning, software, connected workflows, precision agriculture",12601053184,12.601053184,EQUITY,NMS,True
+AGCO,AGCO Corporation,NovaTerra alternative: agricultural equipment and precision farming exposure,8459488256,8.459488256,EQUITY,NYQ,True

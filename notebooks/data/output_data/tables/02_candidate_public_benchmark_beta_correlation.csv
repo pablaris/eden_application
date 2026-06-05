@@ -1,0 +1,7 @@
+Theme,Ticker,Type,Primary ETF Benchmark,Beta vs Benchmark,Correlation vs Benchmark,Overlapping Observations
+Precision Agriculture / AgTech,NovaTerra,Fictional Candidate,MOO,0.12344698937676962,0.07838684814889711,1677
+Precision Agriculture / AgTech,TRMB,Stock Alternative,MOO,1.122611467834543,0.6194688786040747,1677
+Semiconductors / Edge AI,Orion,Fictional Candidate,SMH,1.5526517419697843,0.9633587194825934,1677
+Semiconductors / Edge AI,CRUS,Stock Alternative,SMH,0.7756540403788772,0.6729725533655533,1677
+Smart Grid / Energy Storage,Cleanergy,Fictional Candidate,GRID,0.0004903644688944895,0.00025909113894882963,1677
+Smart Grid / Energy Storage,ITRI,Stock Alternative,GRID,1.1757449655416123,0.6029301138998112,1677
