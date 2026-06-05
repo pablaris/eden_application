@@ -1,14 +1,14 @@
-import pandas as pd  # pyright: ignore[reportMissingModuleSource]
+import pandas as pd
 from pathlib import Path
 
 # ============================================================
-# Project paths
+# Project path resolution
 # ============================================================
 #
-# Resolve the data directory at runtime so the script does not
-# depend on hard-coded absolute paths.
+# Resolve the project's data directory at runtime rather than
+# using hard-coded paths.
 #
-# This makes the module portable across machines, notebooks,
+# This keeps the script portable across machines, notebooks,
 # and execution environments.
 # ============================================================
 
@@ -24,11 +24,18 @@ def path() -> Path:
     Path
         Absolute path to the project's data directory.
     """
-    
+
+    # Identify the directory where this script lives.
     project_root = Path(__file__).resolve().parent
+
+    # Define the output folder used by the Portfolio Fit pipeline.
     data_dir = project_root / "data"
+
+    # Create the folder if it is missing.
     data_dir.mkdir(exist_ok=True)
+
     return data_dir
+
 
 DATA_DIR = path()
 
@@ -43,11 +50,13 @@ DATA_DIR = path()
 #
 # Methodology:
 # Each Portfolio Fit category is evaluated using three guiding
-# questions. Responses are converted into numerical values:
+# questions.
 #
-#     No      -> 0.0
-#     Partial -> 0.5
-#     Yes     -> 1.0
+# Responses are converted into numerical values:
+#
+#     negative = 0.0
+#     neutral  = 0.5
+#     positive = 1.0
 #
 # Category Score:
 #
@@ -61,9 +70,9 @@ DATA_DIR = path()
 # ============================================================
 
 ANSWER_TO_POINTS = {
-    "no": 0.0,
-    "partial": 0.5,
-    "yes": 1.0,
+    "negative": 0.0,
+    "neutral": 0.5,
+    "positive": 1.0,
 }
 
 def score_category(answers):
@@ -74,9 +83,9 @@ def score_category(answers):
     ----------
     answers : list[str]
         Exactly three responses, each of which must be one of:
-            - "yes"
-            - "partial"
-            - "no"
+            - "positive"
+            - "neutral"
+            - "negative"
 
     Returns
     -------
@@ -86,34 +95,47 @@ def score_category(answers):
     Notes
     -----
     The score is computed as:
-        (sum(points) / 3) x 100
+
+        (sum(points) / 3) × 100
 
     where:
-        yes     = 1.0
-        partial = 0.5
-        no      = 0.0
+        positive = 1.0
+        neutral  = 0.5
+        negative = 0.0
 
     This rule-based scoring approach keeps the methodology
     transparent, reproducible, and easy to defend in Q&A.
     """
-    
+
+    # Each category must contain exactly three rubric responses
+    # so that all categories remain comparable.
     if len(answers) != 3:
         raise ValueError(
             "Each category must contain exactly three rubric answers."
         )
+
     points = []
+
+    # Convert each qualitative answer into a numerical score.
     for answer in answers:
         key = answer.lower().strip()
+
+        # Enforce a strict vocabulary to keep the scoring model
+        # auditable and to avoid ambiguous inputs.
         if key not in ANSWER_TO_POINTS:
             raise ValueError(
                 f"Invalid answer '{answer}'. "
-                "Allowed values: yes, partial, no."
+                "Allowed values: positive, neutral, negative."
             )
+
         points.append(ANSWER_TO_POINTS[key])
+
+    # Average the three answers and scale to a 0-100 score.
     return (sum(points) / 3.0) * 100.0
 
+
 # ============================================================
-# Rubric Definition
+# Rubric definition
 # ============================================================
 #
 # The rubric is derived from:
@@ -155,35 +177,37 @@ def score_category(answers):
 
 rubric = {
     "Sector Diversification": {
-        "Orion":     ["no",      "no",      "no"],
-        "Cleanergy": ["yes",     "yes",     "yes"],
-        "NovaTerra": ["yes",     "partial", "yes"],
+        "Orion":     ["negative", "negative", "negative"],
+        "Cleanergy": ["positive", "positive", "positive"],
+        "NovaTerra": ["positive", "neutral",   "positive"],
     },
     "Growth Profile": {
-        "Orion":     ["yes",     "yes",     "yes"],
-        "Cleanergy": ["yes",     "yes",     "yes"],
-        "NovaTerra": ["yes",     "partial", "partial"],
+        "Orion":     ["positive", "positive", "positive"],
+        "Cleanergy": ["positive", "positive", "positive"],
+        "NovaTerra": ["positive", "neutral",   "neutral"],
     },
     "Geographic Diversification": {
-        "Orion":     ["partial", "partial", "partial"],
-        "Cleanergy": ["partial", "no",      "partial"],
-        "NovaTerra": ["yes",     "yes",     "yes"],
+        "Orion":     ["neutral",  "neutral",  "neutral"],
+        "Cleanergy": ["neutral",  "negative", "neutral"],
+        "NovaTerra": ["positive", "positive", "positive"],
     },
     "Structural Theme Exposure": {
-        "Orion":     ["partial", "partial", "partial"],
-        "Cleanergy": ["yes",     "yes",     "yes"],
-        "NovaTerra": ["yes",     "yes",     "partial"],
+        "Orion":     ["neutral",  "neutral",  "neutral"],
+        "Cleanergy": ["positive", "positive", "positive"],
+        "NovaTerra": ["positive", "positive", "neutral"],
     },
     "Revenue Quality": {
-        "Orion":     ["partial", "partial", "partial"],
-        "Cleanergy": ["yes",     "yes",     "partial"],
-        "NovaTerra": ["yes",     "yes",     "yes"],
+        "Orion":     ["neutral",  "neutral",  "neutral"],
+        "Cleanergy": ["positive", "positive", "neutral"],
+        "NovaTerra": ["positive", "positive", "positive"],
     },
 }
+
+# Company universe included in the analysis.
 companies = ["Orion", "Cleanergy", "NovaTerra"]
 
 # ============================================================
-# Category Score Calculation
+# Category score calculation
 # ============================================================
 #
 # Convert each company's rubric responses into category-level
@@ -197,6 +221,7 @@ companies = ["Orion", "Cleanergy", "NovaTerra"]
 # ============================================================
 
 category_scores = pd.DataFrame(index=companies)
+
 for category, company_answers in rubric.items():
     category_scores[category] = {
         company: score_category(company_answers[company])
@@ -204,7 +229,7 @@ for category, company_answers in rubric.items():
     }
 
 # ============================================================
-# Export Results
+# Export results
 # ============================================================
 #
 # Save the category-level score table for downstream use in:
@@ -212,6 +237,9 @@ for category, company_answers in rubric.items():
 #   - final Portfolio Fit computation
 #   - sensitivity analysis
 #   - final investment ranking
+#
+# Excel is used here so the output is easy to review manually
+# and can be opened directly in spreadsheet software.
 # ============================================================
 
 category_scores.to_excel(DATA_DIR / "category_scores.xlsx")
