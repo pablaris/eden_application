@@ -1,94 +1,100 @@
-# EDEN Quant Assessment — Methodology Assumptions
+# EDEN Quant Assessment
 
-## Data source
+A quantitative investment analysis framework developed for the EDEN Fund stock-selection assessment.
 
-Candidate price data comes from the provided EOD CSV files:
+The objective of the project is to evaluate a set of fictional investment opportunities and determine which company should be added to the existing EDEN portfolio.
 
-- `orion_eod.csv`
-- `cleanergy_eod.csv`
-- `novaterra_eod.csv`
+The analysis combines:
 
-These CSVs are treated as the primary source for candidate price performance because the companies are fictional.
+* Portfolio Construction Analysis
+* Portfolio Fit Scoring
+* Risk Analysis
+* Tail-Risk Analysis
+* Benchmark Comparison
+* Fundamental KPI Validation
 
-## Return convention
+to generate a transparent, reproducible, and defensible investment recommendation.
 
-Main performance metrics use simple daily returns calculated from closing prices:
+---
 
-```python
-daily_return = close_price.pct_change()
+# Project Structure
+
+```text
+eden_application/
+│
+├── README.md
+├── setup.py
+├── requirements.txt
+├── Assumptions.md
+│
+├── notebooks/
+│   └── candidate_quant_analysis.ipynb
+│
+├── src/
+│   ├── portfolio_fit_score_package/
+│   │   ├── __init__.py
+│   │   ├── modules.py
+│   │   ├── category_score.py
+│   │   ├── weights.py
+│   │   ├── final_calculation.py
+│   │   └── data/
+│   │
+│   ├── VaR_package/
+│   │   ├── __init__.py
+│   │   └── VaR.py
+│   │
+│   └── fat_tails_package/
+│       ├── __init__.py
+│       └── fat_tails.py
+│
+└── tests/
+    └── test_portfolio_fit_score.py
 ```
 
-Log returns may be used only for distribution diagnostics such as skewness, kurtosis, histogram analysis, QQ plots, or parametric VaR checks.
+---
 
-## Annualization
+# Installation
 
-We assume 252 trading days per year.
+Clone the repository:
 
-## Annualized return
-
-Annualized return is calculated geometrically from the start and end price:
-
-```python
-annualized_return = (ending_price / starting_price) ** (252 / number_of_trading_days) - 1
+```bash
+git clone <repository-url>
+cd eden_application
 ```
 
-## Annualized volatility
+Install the required dependencies:
 
-Annualized volatility is calculated as:
-
-```python
-annualized_volatility = daily_returns.std() * sqrt(252)
+```bash
+pip install -r requirements.txt
 ```
 
-## Sharpe ratio
+Alternatively, install the project as a package:
 
-Sharpe ratios use a 3% annual risk-free rate assumption:
-
-```python
-sharpe = (annualized_return - 0.03) / annualized_volatility
+```bash
+pip install -e .
 ```
 
-This is a simple proxy for a low-risk annual return and avoids overstating risk-adjusted performance.
+---
 
-## VaR and CVaR
+# Methodology Overview
 
-VaR and CVaR are calculated over a 1-trading-day horizon.
+The investment recommendation is built from three independent analytical layers:
 
-The euro impact is calculated using the assessment allocation size:
+## 1. Portfolio Fit Score
 
-```python
-euro_loss = percentage_loss * 5000
-```
+The Portfolio Fit Score measures how well a company addresses the weaknesses and missing exposures identified in the current EDEN portfolio.
 
-VaR answers: “What loss threshold is exceeded only in the worst tail of the distribution?”
+The framework evaluates five dimensions:
 
-CVaR, also called Expected Shortfall, answers: “Once we are already in the worst tail, what is the average loss?”
+* Sector Diversification
+* Growth Profile
+* Geographic Diversification
+* Structural Theme Exposure
+* Revenue Quality
 
-## Position size
+Each category is scored using a rule-based framework built from predefined guiding questions.
 
-The proposed investment size is €5,000, matching the assessment brief.
-
-## External data
-
-External public data may be used later for benchmarks or current portfolio holdings, but it should be clearly separated from the candidate CSV-derived analysis.
-
-## Interpretation principle
-
-Metrics are used to support the investment recommendation, not to mechanically determine it.
-
-The final decision should combine:
-
-- CSV-derived quantitative evidence
-- Fundamental business quality
-- Portfolio fit with EDEN’s existing holdings
-- EDEN rule compliance
-- Downside-risk defensibility in Q&A
-
-# Portfolio Fit Rubric Interpretation
-
-To ensure consistency, transparency, and reproducibility, each Portfolio Fit category is evaluated using three guiding questions.
-
-Each question receives one of the following responses:
+Responses are classified as:
 
 | Response | Score |
 | -------- | ----: |
@@ -96,200 +102,184 @@ Each question receives one of the following responses:
 | Neutral  |   0.5 |
 | Negative |   0.0 |
 
-The category score is then calculated as:
+Category scores are calculated as:
 
 ```text
 Category Score = (Sum of Points / 3) × 100
 ```
 
-This produces a normalized score between 0 and 100 for every category and company.
+The resulting category scores are combined using weights generated through the Analytic Hierarchy Process (AHP).
 
 ---
 
-# 1. Sector Diversification
+## 2. Risk Analysis
 
-### Guiding Question 1
+The Risk Analysis module evaluates the downside risk associated with each investment opportunity.
 
-**Which sectors are already heavily represented in the portfolio?**
+Key metrics include:
 
-| Response | Interpretation                                                        |
-| -------- | --------------------------------------------------------------------- |
-| Positive | The company operates outside heavily represented sectors.             |
-| Neutral  | The company has partial overlap with existing sectors.                |
-| Negative | The company operates in a sector that is already heavily represented. |
+* Annualized Volatility
+* Rolling Volatility
+* Beta
+* Correlation
+* Historical VaR
+* Parametric VaR
+* CVaR (Expected Shortfall)
 
----
-
-### Guiding Question 2
-
-**Which important sectors are currently underrepresented or absent?**
-
-| Response | Interpretation                                             |
-| -------- | ---------------------------------------------------------- |
-| Positive | The company directly fills a missing sector exposure.      |
-| Neutral  | The company partially addresses a missing sector exposure. |
-| Negative | The company does not address a portfolio gap.              |
+The purpose of this module is to quantify how much risk investors must assume when adding a new position to the portfolio.
 
 ---
 
-### Guiding Question 3
+## 3. Compensation per Risk Analysis
 
-**Would adding this company improve diversification or increase concentration?**
+This component evaluates whether investors are being adequately compensated for the level of risk assumed.
 
-| Response | Interpretation                                    |
-| -------- | ------------------------------------------------- |
-| Positive | The company improves portfolio diversification.   |
-| Neutral  | The company has a limited diversification impact. |
-| Negative | The company increases portfolio concentration.    |
+Key metrics include:
 
----
+* Sharpe Ratio
+* Sortino Ratio
+* Annualized Return
+* Maximum Drawdown
 
-# 2. Growth Profile
-
-### Guiding Question 1
-
-**Is the portfolio currently tilted toward growth or capital preservation?**
-
-| Response | Interpretation                                                                |
-| -------- | ----------------------------------------------------------------------------- |
-| Positive | The company improves the portfolio's balance between growth and preservation. |
-| Neutral  | The company has a limited effect on portfolio balance.                        |
-| Negative | The company reinforces an existing imbalance.                                 |
+The objective is to identify companies that generate attractive returns relative to their risk profile.
 
 ---
 
-### Guiding Question 2
+## 4. Fundamental Validation
 
-**Does the portfolio have sufficient exposure to long-term growth opportunities?**
+A KPI-based regression framework is used to assess whether stock-price evolution appears to be supported by underlying business fundamentals.
 
-| Response | Interpretation                                         |
-| -------- | ------------------------------------------------------ |
-| Positive | The company provides strong long-term growth exposure. |
-| Neutral  | The company provides moderate growth exposure.         |
-| Negative | The company provides weak growth exposure.             |
+Examples of explanatory variables include:
 
----
+* Revenue Growth
+* Gross Margin
+* Software / Subscription Revenue Mix
+* AI Prediction Accuracy
+* Assets Under Management
+* Industry-Specific KPI Growth
 
-### Guiding Question 3
-
-**Would this company improve the portfolio's overall growth profile?**
-
-| Response | Interpretation                                      |
-| -------- | --------------------------------------------------- |
-| Positive | The company significantly improves growth exposure. |
-| Neutral  | The company moderately improves growth exposure.    |
-| Negative | The company provides little improvement.            |
+The purpose of this analysis is not to establish causality, but rather to evaluate whether price performance appears directionally consistent with business performance.
 
 ---
 
-# 3. Geographic Diversification
+# Package Overview
 
-### Guiding Question 1
+## portfolio_fit_score_package
 
-**Which regions currently drive the portfolio's returns?**
+Responsible for portfolio construction analysis.
 
-| Response | Interpretation                                                    |
-| -------- | ----------------------------------------------------------------- |
-| Positive | The company introduces meaningful new geographic exposure.        |
-| Neutral  | The company partially overlaps with existing geographic exposure. |
-| Negative | The company remains concentrated in existing regions.             |
+Modules:
 
----
+### category_score.py
 
-### Guiding Question 2
+Calculates category-level Portfolio Fit scores using the rubric-based methodology.
 
-**Is the portfolio overly dependent on a specific region or economy?**
+Output:
 
-| Response | Interpretation                                           |
-| -------- | -------------------------------------------------------- |
-| Positive | The company reduces regional dependence.                 |
-| Neutral  | The company has a limited impact on regional dependence. |
-| Negative | The company reinforces existing regional dependence.     |
+```text
+category_scores.xlsx
+```
 
 ---
 
-### Guiding Question 3
+### weights.py
 
-**Would this company provide meaningful geographic diversification?**
+Computes category weights using the Analytic Hierarchy Process (AHP).
 
-| Response | Interpretation                                            |
-| -------- | --------------------------------------------------------- |
-| Positive | The company provides strong geographic diversification.   |
-| Neutral  | The company provides moderate geographic diversification. |
-| Negative | The company provides little geographic diversification.   |
+Outputs:
 
----
-
-# 4. Structural Theme Exposure
-
-### Guiding Question 1
-
-**Which long-term investment themes are currently underrepresented in the portfolio?**
-
-| Response | Interpretation                                             |
-| -------- | ---------------------------------------------------------- |
-| Positive | The company directly addresses an underrepresented theme.  |
-| Neutral  | The company partially addresses an underrepresented theme. |
-| Negative | The company provides no meaningful thematic exposure.      |
+```text
+portfolio_fit_weights.xlsx
+ahp_pairwise_matrix.xlsx
+```
 
 ---
 
-### Guiding Question 2
+### final_calculation.py
 
-**Does this company provide meaningful exposure to those themes?**
+Combines category scores and category weights to produce the final Portfolio Fit ranking.
 
-| Response | Interpretation                                        |
-| -------- | ----------------------------------------------------- |
-| Positive | The theme is central to the company's business model. |
-| Neutral  | The theme is a secondary component of the business.   |
-| Negative | The theme has minimal relevance to the business.      |
+Output:
 
----
-
-### Guiding Question 3
-
-**Would this company strengthen the portfolio's positioning for future structural trends?**
-
-| Response | Interpretation                                                     |
-| -------- | ------------------------------------------------------------------ |
-| Positive | The company significantly improves long-term thematic positioning. |
-| Neutral  | The company moderately improves long-term thematic positioning.    |
-| Negative | The company provides little thematic benefit.                      |
+```text
+final_portfolio_fit_scores.xlsx
+```
 
 ---
 
-# 5. Revenue Quality
+## VaR_package
 
-### Guiding Question 1
+Computes:
 
-**How much of the portfolio is currently exposed to predictable recurring revenue models?**
+* Historical VaR
+* Parametric VaR
+* CVaR
 
-| Response | Interpretation                                                 |
-| -------- | -------------------------------------------------------------- |
-| Positive | The company significantly improves recurring revenue exposure. |
-| Neutral  | The company moderately improves recurring revenue exposure.    |
-| Negative | The company provides little recurring revenue exposure.        |
+Purpose:
 
----
-
-### Guiding Question 2
-
-**Does this company generate stable revenues or depend primarily on one-time sales?**
-
-| Response | Interpretation                                                    |
-| -------- | ----------------------------------------------------------------- |
-| Positive | The company generates highly recurring and predictable revenue.   |
-| Neutral  | The company has a mixed revenue model.                            |
-| Negative | The company depends primarily on transactional or one-time sales. |
+Quantify downside tail risk.
 
 ---
 
-### Guiding Question 3
+## fat_tails_package
 
-**Would adding this company improve the overall quality and predictability of portfolio cash flows?**
+Analyzes return distributions using:
 
-| Response | Interpretation                                                |
-| -------- | ------------------------------------------------------------- |
-| Positive | The company significantly improves cash-flow quality.         |
-| Neutral  | The company moderately improves cash-flow quality.            |
-| Negative | The company provides little improvement in cash-flow quality. |
+* Histograms
+* QQ Plots
+* Skewness
+* Kurtosis
+
+Purpose:
+
+Assess whether return distributions deviate from normality.
+
+---
+
+# Assumptions
+
+The project assumptions are documented in:
+
+```text
+Assumptions.md
+```
+
+These assumptions define:
+
+* Return conventions
+* Annualization methodology
+* Risk-free rate assumptions
+* Position sizing assumptions
+* VaR and CVaR methodology
+* Interpretation guidelines
+
+All analytical modules should remain consistent with these assumptions.
+
+---
+
+# Testing
+
+Run the test suite:
+
+```bash
+pytest
+```
+
+Current tests validate:
+
+* Path resolution
+* Portfolio Fit infrastructure
+* Data export functionality
+
+---
+
+# Output
+
+The final objective of the project is to generate a ranked investment recommendation that integrates:
+
+1. Portfolio Fit Score
+2. Risk Analysis
+3. Compensation per Risk Analysis
+4. Fundamental Validation
+
+The resulting recommendation is designed to mimic the decision-making process of an investment committee and provide a transparent justification for portfolio inclusion.
